@@ -1,74 +1,64 @@
-# PickBetter - Nutrition App
+# Pick Better | AI-Powered Nutrition Backend
 
-A nutrition tracking application with AI-powered recommendations.
+This repository houses the core engine for **Pick Better**, a high-performance backend designed to decode food labels and provide health insights. The system orchestrates Computer Vision, LLMs, and a multi-tiered data retrieval strategy to transform raw product data into actionable health metrics.
 
-## Project Structure
+---
 
-```
-pickbetter/
-├── app/
-│   ├── api/               # API routes
-│   │   └── products.py    # Product-related endpoints
-│   ├── models/            # Database models
-│   │   └── product.py     # Product and nutrition models
-│   ├── services/          # Business logic
-│   │   ├── product_service.py  # Product service
-│   │   └── openfoodfacts.py    # Open Food Facts API client
-│   ├── config.py          # Application configuration
-│   └── database.py        # Database connection and session management
-├── migrations/            # Database migrations
-├── tests/                 # Test files
-│   └── __init__.py
-├── .env.example           # Example environment variables
-├── .gitignore            # Git ignore file
-├── alembic.ini           # Alembic configuration
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
-```
+## 🏗️ System Architecture
 
-## Setup
+The backend follows a **Modular Monolith** pattern with a focus on asynchronous data pipelines and cost-efficient retrieval.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/pickbetter.git
-   cd pickbetter
-   ```
+### **The "Waterfall" Data Strategy**
 
-2. **Create and activate virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+To minimize latency and external API costs, the system implements a prioritized lookup logic:
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. **L1 Cache (MongoDB Atlas):** Instant retrieval of previously analyzed products.
+2. **L2 External (Open Food Facts):** Fallback for verified global product data.
+3. **L3 Synthesis (AI Core):** If no data exists, the **OCR Processor** and **Gemini RAG** module dynamically generate a product profile from the user's scan.
 
-4. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your Supabase credentials
-   ```
+<p align="center">
+  <img src="architecture.png" alt="Architecture" width="800">
+</p>
 
-5. **Run database migrations**
-   ```bash
-   alembic upgrade head
-   ```
 
-6. **Run the development server**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+---
 
-## Development
+## 🛠️ Technical Stack
 
-- **Run tests**: `pytest`
-- **Format code**: `black . && isort .`
-- **Check types**: `mypy .`
+* **API Framework:** FastAPI (Python) — utilized for its native `async` support and Pydantic-based data validation.
+* **Database:** MongoDB Atlas — serves as both the document store and the vector database for flavor embeddings.
+* **AI & LLM:** * **Google Gemini:** Powers the RAG (Retrieval-Augmented Generation) module for ingredient analysis.
+* **Sentence-Transformers:** Generates high-dimensional embeddings for flavor-based product matching.
 
-## API Documentation
 
-Once the server is running, visit:
-- API Docs: http://localhost:8000/docs
-- Redoc: http://localhost:8000/redoc
+* **Vision & Scraping:** * **EasyOCR / Google Vision API:** For high-accuracy label parsing.
+* **Playwright:** An automated background scraper for proactive data seeding.
+
+
+
+---
+
+## 🚀 Key Engineering Features
+
+### **1. Deterministic Scoring Engine**
+
+Unlike standard LLM implementations that can hallucinate, our **Scoring Engine** uses a hard-coded logic layer based on **FSSAI (Food Safety and Standards Authority of India)** guidelines. It calculates scores by cross-referencing extracted nutrients (Fats, Sodium, Sugar) against regulatory thresholds.
+
+### **2. Semantic Flavor Embeddings**
+
+We’ve implemented a vector search capability that allows users to find "Better" alternatives not just by category, but by **flavor profile**. By vectorizing ingredient lists, the system can identify products with similar taste notes (e.g., "savory/umami" or "citrusy").
+
+### **3. Proactive Data Seeding**
+
+To ensure a high "L1 Cache" hit rate, the system includes a **Playwright-based Web Scraper**. This background worker periodically crawls e-commerce platforms to seed the database with new products before a user even scans them.
+
+---
+
+## 🚦 API Reference
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/v1/scan/barcode` | `POST` | Executes the Waterfall lookup using GTIN/EAN. |
+| `/v1/scan/label` | `POST` | Full OCR pipeline for nutritional parsing and FSSAI scoring. |
+| `/v1/recommend` | `GET` | Returns alternatives based on Flavor Embeddings + Health Score. |
+
